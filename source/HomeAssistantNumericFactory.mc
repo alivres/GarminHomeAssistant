@@ -24,6 +24,7 @@ class HomeAssistantNumericFactory extends WatchUi.PickerFactory {
     private var mStop         as Lang.Float  = 100.0;
     private var mStep         as Lang.Float  = 1.0;
     private var mFormatString as Lang.String = "%d";
+    private var mFont                         = Graphics.FONT_NUMBER_MEDIUM;
 
     //! Class Constructor
     //
@@ -76,6 +77,7 @@ class HomeAssistantNumericFactory extends WatchUi.PickerFactory {
         return new WatchUi.Text({
             :text  => text,
             :color => Graphics.COLOR_WHITE,
+            :font  => mFont,
             :locX  => WatchUi.LAYOUT_HALIGN_CENTER,
             :locY  => WatchUi.LAYOUT_VALIGN_CENTER
         });

@@ -27,9 +27,9 @@ class HomeAssistantNumericMenuItem extends HomeAssistantMenuItem {
     private var mExit                 as Lang.Boolean;
     private var mPin                  as Lang.Boolean;
     private var mData                 as Lang.Dictionary?;
-    private var mPicker               as Lang.Dictionary?;
-    private var mValue                as Lang.Number or Lang.Float = 0;
-    private var mFormatString         as Lang.String = "%d";
+    private var mPickers              as Lang.Array;
+    private var mValues               as Lang.Array;
+    private var mFormatStrings        as Lang.Array;
 
     //! Class Constructor
     //!
@@ -50,7 +50,7 @@ class HomeAssistantNumericMenuItem extends HomeAssistantMenuItem {
         template  as Lang.String,
         action    as Lang.String?,
         data      as Lang.Dictionary?,
-        picker    as Lang.Dictionary,
+        picker    as Lang.Dictionary or Lang.Array,
         options   as {
             :alignment as WatchUi.MenuItem.Alignment,
             :icon      as Graphics.BitmapType or WatchUi.Drawable or Lang.Symbol,
@@ -62,12 +62,39 @@ class HomeAssistantNumericMenuItem extends HomeAssistantMenuItem {
     ) {
         mAction               = action;
         mData                 = data;
-        mPicker               = picker;
         mExit                 = options[:exit];
         mConfirm              = options[:confirm];
         mPin                  = options[:pin];
         mLabel                = label;
         mHomeAssistantService = haService;
+
+        // Normalize picker: if a single Dictionary is provided, wrap it in an array.
+        if (picker instanceof Lang.Array) {
+            mPickers = picker as Lang.Array;
+        } else {
+            mPickers = [picker as Lang.Dictionary];
+        }
+
+        // Initialize per-picker value and format-string arrays.
+        var count = mPickers.size();
+        mValues       = new [count];
+        mFormatStrings = new [count];
+        for (var i = 0; i < count; i++) {
+            mValues[i]       = 0;
+            mFormatStrings[i] = "%d";
+            var p = mPickers[i] as Lang.Dictionary;
+            var s = p["step"];
+            if (s != null) {
+                var step = s.toFloat() as Lang.Float;
+                var dp = 0;
+                while (step < 1.0) {
+                    step *= 10;
+                    dp++;
+                    // Assigned inside the loop and in each iteration to avoid clobbering the default '%d'.
+                    mFormatStrings[i] = "%." + dp.toString() + "f";
+                }
+            }
+        }
 
         HomeAssistantMenuItem.initialize(
             label,
@@ -77,20 +104,6 @@ class HomeAssistantNumericMenuItem extends HomeAssistantMenuItem {
                 :icon      => options[:icon]
             }
         );
-
-        if (picker != null) {
-            var s = picker["step"];
-            if (s != null) {
-                var step = s.toFloat() as Lang.Float;
-                var dp = 0;
-                while (step < 1.0) {
-                    step *= 10;
-                    dp++;
-                    // Assigned inside the loop and in each iteration to avoid clobbering the default '%d'.
-                    mFormatString = "%." + dp.toString() + "f";
-                }
-            }
-        }
     }
 
 
@@ -154,34 +167,37 @@ class HomeAssistantNumericMenuItem extends HomeAssistantMenuItem {
     //! @param b Ignored. It is included in order to match the expected function prototype of the callback method.
     //
     function onConfirm(b as Lang.Boolean) as Void {
-        var dataAttribute = mPicker["data_attribute"] as Lang.String?;
-        var entity_id     = mData["entity_id"]        as Lang.String?;
+        var entity_id = mData["entity_id"] as Lang.String?;
 
         WatchUi.popView(WatchUi.SLIDE_RIGHT);
         WatchUi.requestUpdate();
-        if (dataAttribute == null or entity_id == null) {
-            // Return without service call if no data attribute or entity ID is set to avoid crash.
+        if (entity_id == null) {
+            // Return without service call if no entity ID is set to avoid crash.
             return;
         }
         if (mAction != null) {
+            var serviceData = { "entity_id" => entity_id.toString() };
+            for (var i = 0; i < mPickers.size(); i++) {
+                var dataAttribute = (mPickers[i] as Lang.Dictionary)["data_attribute"] as Lang.String?;
+                if (dataAttribute != null) {
+                    serviceData[dataAttribute.toString()] = mValues[i];
+                }
+            }
             mHomeAssistantService.call(
                 mAction,
-                {
-                    "entity_id"              => entity_id.toString(),
-                    dataAttribute.toString() => mValue
-                },
+                serviceData,
                 mExit
             );
         }
     }
 
-    //! Return a numeric menu item's fetch state template.
+    //! Return a numeric menu item's fetch state template for the first picker.
     //!
     //! @return A string with the menu item's template definition (or null).
     //
     function getNumericTemplate() as Lang.String? {
-        var entity_id = mData["entity_id"]   as Lang.String?;
-        var attribute = mPicker["attribute"] as Lang.String?;
+        var entity_id = mData["entity_id"]                          as Lang.String?;
+        var attribute = (mPickers[0] as Lang.Dictionary)["attribute"] as Lang.String?;
 
         if (entity_id == null) {
             return null;
@@ -194,6 +210,26 @@ class HomeAssistantNumericMenuItem extends HomeAssistantMenuItem {
         }
     }
 
+    //! Return fetch state templates for all pickers.
+    //!
+    //! @return An array of template strings (one per picker; entries may be null).
+    //
+    function getNumericTemplates() as Lang.Array {
+        var entity_id = mData["entity_id"] as Lang.String?;
+        var templates = new [mPickers.size()];
+        for (var i = 0; i < mPickers.size(); i++) {
+            var attribute = (mPickers[i] as Lang.Dictionary)["attribute"] as Lang.String?;
+            if (entity_id == null) {
+                templates[i] = null;
+            } else if (attribute == null) {
+                templates[i] = "{{states('" + entity_id.toString() + "')}}";
+            } else {
+                templates[i] = "{{state_attr('" + entity_id.toString() + "','" + attribute + "')}}";
+            }
+        }
+        return templates;
+    }
+
     //! Update the menu item's sub label to display the template rendered by Home Assistant.
     //!
     //! @param data The rendered template (typically a string) to be placed in the sub label. This may
@@ -204,10 +240,10 @@ class HomeAssistantNumericMenuItem extends HomeAssistantMenuItem {
             setSubLabel($.Rez.Strings.Empty);
         } else if(data instanceof Lang.Float) {
             var f = data as Lang.Float;
-            setSubLabel(f.format(mFormatString));
+            setSubLabel(f.format(mFormatStrings[0] as Lang.String));
         } else if(data instanceof Lang.Number) {
             var f = data.toFloat() as Lang.Float;
-            setSubLabel(f.format(mFormatString));
+            setSubLabel(f.format(mFormatStrings[0] as Lang.String));
         } else if (data instanceof Lang.String) {
             // This should not happen
             setSubLabel(data);
@@ -218,20 +254,36 @@ class HomeAssistantNumericMenuItem extends HomeAssistantMenuItem {
         WatchUi.requestUpdate();
     }
 
-    //! Set the Picker's value. Needed to set new value via the Action call
+    //! Set the first picker's value (backward-compatible single-picker helper).
     //!
     //! @param value New value to set.
     //
     public function setValue(value as Lang.Number or Lang.Float) as Void {
-        mValue = value;
+        mValues[0] = value;
     }
 
-    //! Get the Picker's value.
-    //!
-    //! Needed to set new value via the Action call
+    //! Get the first picker's value (backward-compatible single-picker helper).
     //
     public function getValue() as Lang.Number or Lang.Float {
-        return mValue;
+        return mValues[0] as Lang.Number or Lang.Float;
+    }
+
+    //! Set the value for a specific picker column.
+    //!
+    //! @param index Column index.
+    //! @param value New value to set.
+    //
+    public function setValueAt(index as Lang.Number, value as Lang.Number or Lang.Float) as Void {
+        mValues[index] = value;
+    }
+
+    //! Get the value for a specific picker column.
+    //!
+    //! @param index Column index.
+    //! @return The value at the given index.
+    //
+    public function getValueAt(index as Lang.Number) as Lang.Number or Lang.Float {
+        return mValues[index] as Lang.Number or Lang.Float;
     }
 
     //! Get the original 'data' field supplied by the JSON menu.
@@ -242,11 +294,27 @@ class HomeAssistantNumericMenuItem extends HomeAssistantMenuItem {
         return mData;
     }
 
-    // Get the original 'picker' field supplied by the JSON menu.
+    //! Get the first picker dictionary (backward-compatible single-picker helper).
     //!
-    //! @return Dictionary containing the 'picker' field.
+    //! @return Dictionary containing the first 'picker' entry.
     //
     public function getPicker() as Lang.Dictionary {
-        return mPicker;
+        return mPickers[0] as Lang.Dictionary;
+    }
+
+    //! Get all picker dictionaries.
+    //!
+    //! @return Array of all picker dictionaries.
+    //
+    public function getPickers() as Lang.Array {
+        return mPickers;
+    }
+
+    //! Get the number of picker columns.
+    //!
+    //! @return Number of pickers.
+    //
+    public function getPickerCount() as Lang.Number {
+        return mPickers.size();
     }
 }

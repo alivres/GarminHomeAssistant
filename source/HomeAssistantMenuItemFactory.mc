@@ -163,7 +163,7 @@ class HomeAssistantMenuItemFactory {
         entity_id as Lang.String?,
         template  as Lang.String?,
         action    as Lang.String?,
-        picker    as Lang.Dictionary,
+        picker    as Lang.Dictionary or Lang.Array,
         options   as {
             :exit    as Lang.Boolean,
             :confirm as Lang.Boolean,

@@ -134,14 +134,14 @@ class HomeAssistantView extends WatchUi.Menu2 {
                         }
                     } else if (type.equals("numeric") && action != null) {
                         if (tap_action != null) {
-                            var picker = tap_action.get("picker") as Lang.Dictionary?;
+                            var picker = tap_action.get("picker");
                             if (picker != null) {
                                 addItem(HomeAssistantMenuItemFactory.create().numeric(
                                     name,
                                     entity,
                                     content,
                                     action,
-                                    picker,
+                                    picker as Lang.Dictionary or Lang.Array,
                                     {
                                         :exit    => exit,
                                         :confirm => confirm,
@@ -281,9 +281,13 @@ class HomeAssistantViewDelegate extends WatchUi.Menu2InputDelegate {
         } else if (item instanceof HomeAssistantNumericMenuItem) {
             var haItem = item as HomeAssistantNumericMenuItem;
             // System.println(haItem.getLabel() + " " + haItem.getId());
-            // create new view to select new value
-            var mPickerFactory  = new HomeAssistantNumericFactory((haItem as HomeAssistantNumericMenuItem).getPicker());
-            var mPicker         = new HomeAssistantNumericPicker(mPickerFactory,haItem);
+            // Create one factory per picker column, then push the multi-column picker view.
+            var pickers   = haItem.getPickers();
+            var factories = new [pickers.size()];
+            for (var pi = 0; pi < pickers.size(); pi++) {
+                factories[pi] = new HomeAssistantNumericFactory(pickers[pi] as Lang.Dictionary);
+            }
+            var mPicker         = new HomeAssistantNumericPicker(factories, haItem);
             var mPickerDelegate = new HomeAssistantNumericPickerDelegate(mPicker);
             WatchUi.pushView(mPicker,mPickerDelegate,WatchUi.SLIDE_LEFT);
         } else if (item instanceof HomeAssistantGroupMenuItem) {

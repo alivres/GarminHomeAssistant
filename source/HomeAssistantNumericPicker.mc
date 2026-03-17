@@ -25,25 +25,33 @@ class HomeAssistantNumericPicker extends WatchUi.Picker {
     private var mItem as HomeAssistantNumericMenuItem;
 
     //! Constructor
+    //!
+    //! @param factories Array of HomeAssistantNumericFactory instances (one per picker column).
+    //! @param haItem    The menu item that owns this picker.
     //
     public function initialize(
-        factory as HomeAssistantNumericFactory,
-        haItem  as HomeAssistantNumericMenuItem
+        factories as Lang.Array,
+        haItem    as HomeAssistantNumericMenuItem
     ) {
-        mItem       = haItem;
-        var picker  = mItem.getPicker();
-        var minStr  = picker.get("min");
-        var stepStr = picker.get("step");
-        var val     = haItem.getValue();
-        
-        var min = 0.0;
-        var step = 1.0;
-        
-        if (minStr != null) {
-            min = (minStr as Lang.String).toFloat();
-        }
-        if (stepStr != null) {
-            step = (stepStr as Lang.String).toFloat();
+        mItem = haItem;
+        var pickers  = haItem.getPickers();
+        var count    = factories.size();
+        var defaults = new [count];
+
+        for (var i = 0; i < count; i++) {
+            var p       = pickers[i] as Lang.Dictionary;
+            var minStr  = p.get("min");
+            var stepStr = p.get("step");
+            var min     = 0.0;
+            var step    = 1.0;
+            if (minStr != null) {
+                min = (minStr as Lang.String).toFloat();
+            }
+            if (stepStr != null) {
+                step = (stepStr as Lang.String).toFloat();
+            }
+            var val = haItem.getValueAt(i);
+            defaults[i] = ((val - min) / step).toNumber();
         }
 
         WatchUi.Picker.initialize({
@@ -52,18 +60,19 @@ class HomeAssistantNumericPicker extends WatchUi.Picker {
                 :locX => WatchUi.LAYOUT_HALIGN_CENTER,
                 :locY => WatchUi.LAYOUT_VALIGN_BOTTOM
             }),
-            :pattern  => [factory],
-            :defaults => [((val - min) / step).toNumber()]
+            :pattern  => factories,
+            :defaults => defaults
         });
     }
 
     //! Called when the user has completed picking.
     //!
-    //! @param value Value user selected
-    //! @return true if user is done, false otherwise
+    //! @param values Array of values selected by the user (one per column).
     //
-    public function onConfirm(value as Lang.Number or Lang.Float) as Void {
-        mItem.setValue(value);
+    public function onConfirm(values as Lang.Array) as Void {
+        for (var i = 0; i < values.size(); i++) {
+            mItem.setValueAt(i, values[i]);
+        }
         mItem.callAction();
     }
 }
@@ -95,7 +104,7 @@ class HomeAssistantNumericPickerDelegate extends WatchUi.PickerDelegate {
     //! @return true if handled, false otherwise
     //
     public function onAccept(values as Lang.Array) as Lang.Boolean {
-        mPicker.onConfirm(values[0]);
+        mPicker.onConfirm(values);
         return true;
     }
 }

@@ -166,6 +166,48 @@ Specific to this menu item:
 
 1. If the number picker does not initialise with the correct value, amend the `attribute` field. Just because your template renders does not mean the application has extracted the numeric value as the `content` template is rendered on the HomeAssistant server.
 
+## Dual Setpoint (Multi-Column Picker)
+
+For thermostats that expose two independent setpoints (e.g. `target_temp_low` and `target_temp_high`), you can combine both into a **single numeric menu item** by supplying the `picker` field as a JSON array instead of a single object.
+
+The Garmin picker will display one scrollable column per entry in the array, and a single service call will be made with **all** selected values once the user confirms.
+
+```json
+{
+  "name": "Thermostat Range",
+  "content": "{{ '%.1f' | format(state_attr('climate.thermostat','target_temp_low')) }}-{{ '%.1f' | format(state_attr('climate.thermostat','target_temp_high')) }}",
+  "type": "numeric",
+  "entity": "climate.thermostat",
+  "tap_action": {
+    "action": "climate.set_temperature",
+    "picker": [
+      {
+        "step": 0.5,
+        "min": 10,
+        "max": 30,
+        "attribute": "target_temp_low",
+        "data_attribute": "target_temp_low"
+      },
+      {
+        "step": 0.5,
+        "min": 10,
+        "max": 30,
+        "attribute": "target_temp_high",
+        "data_attribute": "target_temp_high"
+      }
+    ]
+  }
+}
+```
+
+When the user opens the picker they will see two side-by-side columns — one for the low setpoint and one for the high setpoint. After confirming, the app sends:
+
+```json
+{ "entity_id": "climate.thermostat", "target_temp_low": 18.0, "target_temp_high": 22.0 }
+```
+
+All existing single-object `picker` configurations continue to work without any changes.
+
 ## Credits
 
 With thanks to Tom Michel, [@thmichel](https://github.com/thmichel) for contributing this solution.

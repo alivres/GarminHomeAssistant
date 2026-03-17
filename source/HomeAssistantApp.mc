@@ -634,9 +634,19 @@ class HomeAssistantApp extends Application.AppBase {
                                 (item as HomeAssistantToggleMenuItem).updateToggleState(data[i.toString() + "t"]);
                             }
                             if (item instanceof HomeAssistantNumericMenuItem) {
-                               var s = data[i.toString() + "n"];
-                               if ((s instanceof Lang.Number) or (s instanceof Lang.Float)) {
-                                   (item as HomeAssistantNumericMenuItem).setValue(s);
+                               var numericItem = item as HomeAssistantNumericMenuItem;
+                               if (numericItem.getPickerCount() == 1) {
+                                   var s = data[i.toString() + "n"];
+                                   if ((s instanceof Lang.Number) or (s instanceof Lang.Float)) {
+                                       numericItem.setValue(s);
+                                   }
+                               } else {
+                                   for (var pi = 0; pi < numericItem.getPickerCount(); pi++) {
+                                       var s = data[i.toString() + "n" + pi.toString()];
+                                       if ((s instanceof Lang.Number) or (s instanceof Lang.Float)) {
+                                           numericItem.setValueAt(pi, s);
+                                       }
+                                   }
                                }
                             }
                         }
@@ -730,7 +740,15 @@ class HomeAssistantApp extends Application.AppBase {
                             mTemplates[i.toString() + "t"] = { "template" => (item as HomeAssistantToggleMenuItem).getToggleTemplate() };
                         }
                         if (item instanceof HomeAssistantNumericMenuItem) {
-                            mTemplates[i.toString() + "n"] = { "template" => (item as HomeAssistantNumericMenuItem).getNumericTemplate() };
+                            var numericItem = item as HomeAssistantNumericMenuItem;
+                            if (numericItem.getPickerCount() == 1) {
+                                mTemplates[i.toString() + "n"] = { "template" => numericItem.getNumericTemplate() };
+                            } else {
+                                var templates = numericItem.getNumericTemplates();
+                                for (var pi = 0; pi < templates.size(); pi++) {
+                                    mTemplates[i.toString() + "n" + pi.toString()] = { "template" => templates[pi] };
+                                }
+                            }
                         }
                     }
                 }

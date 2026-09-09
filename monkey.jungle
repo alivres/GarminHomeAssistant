@@ -17,6 +17,7 @@
 #-----------------------------------------------------------------------------------
 
 project.manifest = manifest.xml
+base.sourcePath = .\source\**.mc
 
 # Device References
 # * https://developer.garmin.com/connect-iq/compatible-devices/

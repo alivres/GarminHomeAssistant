@@ -24,6 +24,28 @@ using Toybox.WatchUi;
 class HomeAssistantNumericPicker extends WatchUi.Picker {
     private var mItem as HomeAssistantNumericMenuItem;
 
+    private function getTitleText(pickers as Lang.Array) as Lang.String {
+        var titles = [];
+
+        for (var i = 0; i < pickers.size(); i++) {
+            var pickerTitle = (pickers[i] as Lang.Dictionary).get("title") as Lang.String?;
+            if (pickerTitle != null && pickerTitle.length() > 0) {
+                titles.add(pickerTitle);
+            }
+        }
+
+        if (titles.size() == 0) {
+            return mItem.getLabel().toString();
+        }
+
+        var titleText = titles[0] as Lang.String;
+        for (var ti = 1; ti < titles.size(); ti++) {
+            titleText += " / " + (titles[ti] as Lang.String);
+        }
+
+        return titleText;
+    }
+
     //! Constructor
     //!
     //! @param factories Array of HomeAssistantNumericFactory instances (one per picker column).
@@ -54,11 +76,14 @@ class HomeAssistantNumericPicker extends WatchUi.Picker {
             defaults[i] = ((val - min) / step).toNumber();
         }
 
+        var titleText = getTitleText(pickers);
+
         WatchUi.Picker.initialize({
             :title    => new WatchUi.Text({
-                :text => haItem.getLabel(),
-                :locX => WatchUi.LAYOUT_HALIGN_CENTER,
-                :locY => WatchUi.LAYOUT_VALIGN_BOTTOM
+                :text  => titleText,
+                :color => Graphics.COLOR_WHITE,
+                :locX  => WatchUi.LAYOUT_HALIGN_CENTER,
+                :locY  => WatchUi.LAYOUT_VALIGN_BOTTOM
             }),
             :pattern  => factories,
             :defaults => defaults
@@ -71,7 +96,10 @@ class HomeAssistantNumericPicker extends WatchUi.Picker {
     //
     public function onConfirm(values as Lang.Array) as Void {
         for (var i = 0; i < values.size(); i++) {
-            mItem.setValueAt(i, values[i]);
+            var selectedValue = values[i];
+            if (selectedValue != null) {
+                mItem.setValueAt(i, selectedValue as Lang.Number or Lang.Float);
+            }
         }
         mItem.callAction();
     }

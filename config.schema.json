@@ -261,6 +261,11 @@
                   "title": "Number picker configuration",
                   "description": "'attribute' field is optional.",
                   "properties": {
+                    "title": {
+                      "type": "string",
+                      "title": "Picker Title",
+                      "description": "Optional title for this picker column. Multi-column pickers combine these titles in the picker header."
+                    },
                     "min": {
                       "type": "number",
                       "title": "Minimum Value"

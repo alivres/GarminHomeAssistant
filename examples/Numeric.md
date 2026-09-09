@@ -31,6 +31,7 @@ This needs some explanation. The `tap_action` object needs a `picker` object to 
 
 Field            | Purpose                                                        | Mandatory |
 -----------------|----------------------------------------------------------------|-----------|
+`title`          | Optional title text for the picker column.                     | No        |
 `step`           | The increment or decrement step size.                          | Yes       |
 `min`            | The minimum value the numeric entity can take.                 | Yes       |
 `max`            | The maximum value the numeric entity can take.                 | Yes       |
@@ -182,6 +183,7 @@ The Garmin picker will display one scrollable column per entry in the array, and
     "action": "climate.set_temperature",
     "picker": [
       {
+        "title": "Temp low",
         "step": 0.5,
         "min": 10,
         "max": 30,
@@ -189,6 +191,7 @@ The Garmin picker will display one scrollable column per entry in the array, and
         "data_attribute": "target_temp_low"
       },
       {
+        "title": "Temp high",
         "step": 0.5,
         "min": 10,
         "max": 30,
@@ -200,7 +203,7 @@ The Garmin picker will display one scrollable column per entry in the array, and
 }
 ```
 
-When the user opens the picker they will see two side-by-side columns — one for the low setpoint and one for the high setpoint. After confirming, the app sends:
+When the user opens the picker they will see two side-by-side columns — one for the low setpoint and one for the high setpoint. If `title` is provided on the picker entries, the native picker header shows a combined title such as `Temp low / Temp high`. After confirming, the app sends:
 
 ```json
 { "entity_id": "climate.thermostat", "target_temp_low": 18.0, "target_temp_high": 22.0 }
